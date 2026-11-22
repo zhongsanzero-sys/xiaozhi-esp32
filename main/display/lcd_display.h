@@ -12,6 +12,8 @@
 
 #define PREVIEW_IMAGE_DURATION_MS 5000
 
+class LvglTheme;
+
 class LcdDisplay : public LvglDisplay {
 protected:
     enum class EyeMood {
