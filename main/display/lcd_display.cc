@@ -1883,7 +1883,8 @@ void LcdDisplay::SetupUI() {
         lv_obj_align(status_label_, LV_ALIGN_TOP_MID, 0, 0);
 
         /* 4. Borderless circular-safe subtitle window with smooth auto-scroll */
-        subtitle_box_height_ = std::max(38, std::min(50, text_font->line_height * 2 + 6));
+        subtitle_box_height_ =
+            std::max(38, std::min(50, static_cast<int>(text_font->line_height) * 2 + 6));
         bottom_bar_ = lv_obj_create(screen);
         lv_obj_set_size(bottom_bar_, 136, subtitle_box_height_);
         lv_obj_set_style_radius(bottom_bar_, 0, 0);
@@ -2367,7 +2368,8 @@ void LcdDisplay::SetTheme(Theme* theme) {
 
     if (IsRoundDisplay()) {
         // Refresh safe subtitle box height in case a larger cloud font was just loaded
-        subtitle_box_height_ = std::max(38, std::min(50, text_font->line_height * 2 + 6));
+        subtitle_box_height_ =
+            std::max(38, std::min(50, static_cast<int>(text_font->line_height) * 2 + 6));
         if (bottom_bar_ != nullptr) {
             lv_obj_set_size(bottom_bar_, 136, subtitle_box_height_);
             lv_obj_set_style_bg_opa(bottom_bar_, LV_OPA_TRANSP, 0);
