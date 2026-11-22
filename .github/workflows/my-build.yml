@@ -13,6 +13,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build bread-compact-wifi-lcd
+        shell: bash
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           source "${IDF_PATH}/export.sh"
