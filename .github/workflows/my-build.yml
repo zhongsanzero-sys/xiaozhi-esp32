@@ -1,0 +1,25 @@
+name: Build My GC9A01 Board
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:release-v6.1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build bread-compact-wifi-lcd
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          source "${IDF_PATH}/export.sh"
+          python3 scripts/build.py bread-compact-wifi-lcd --name bread-compact-wifi-lcd --language zh-CN
+
+      - name: Upload Firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-gc9a01-firmware
+          path: build/merged-binary.bin
