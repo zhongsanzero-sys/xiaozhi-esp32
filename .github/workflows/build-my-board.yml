@@ -1,0 +1,32 @@
+name: Build My Round LCD Board
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:release-v6.1
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Fix git safe directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Build bread-compact-wifi-lcd
+        run: |
+          . /opt/esp/idf/export.sh
+          python scripts/build.py bread-compact-wifi-lcd --name bread-compact-wifi-lcd --zip
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: bread-compact-wifi-lcd-firmware
+          path: |
+            releases/*.zip
+            build/merged-binary.bin
+          if-no-files-found: error
