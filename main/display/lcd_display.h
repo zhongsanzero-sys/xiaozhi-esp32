@@ -8,11 +8,34 @@
 #include <esp_lcd_panel_ops.h>
 #include <atomic>
 #include <memory>
+#include <string>
 
 #define PREVIEW_IMAGE_DURATION_MS 5000
 
 class LcdDisplay : public LvglDisplay {
 protected:
+    enum class EyeMood {
+        kNeutral,
+        kHappy,
+        kLaughing,
+        kSad,
+        kAngry,
+        kSurprised,
+        kLoving,
+        kThinking,
+        kSleepy,
+        kWinking,
+        kCool,
+        kEmbarrassed,
+    };
+
+    enum class DeviceVisualState {
+        kIdle,
+        kListening,
+        kSpeaking,
+        kConnecting,
+    };
+
     esp_lcd_panel_io_handle_t panel_io_ = nullptr;
     esp_lcd_panel_handle_t panel_ = nullptr;
 
@@ -34,8 +57,45 @@ protected:
     std::unique_ptr<LvglImage> preview_image_cached_ = nullptr;
     bool hide_subtitle_ = false;  // Control whether to hide chat messages/subtitles
 
+    // Round display expressive eyes & emotion halo
+    lv_obj_t* emotion_halo_ = nullptr;
+    lv_obj_t* eye_container_ = nullptr;
+    lv_obj_t* left_eye_wrap_ = nullptr;
+    lv_obj_t* right_eye_wrap_ = nullptr;
+    lv_obj_t* left_eye_ = nullptr;
+    lv_obj_t* right_eye_ = nullptr;
+    lv_obj_t* left_highlight_ = nullptr;
+    lv_obj_t* right_highlight_ = nullptr;
+    lv_obj_t* left_top_lid_ = nullptr;
+    lv_obj_t* right_top_lid_ = nullptr;
+    lv_obj_t* left_bottom_lid_ = nullptr;
+    lv_obj_t* right_bottom_lid_ = nullptr;
+    lv_timer_t* eye_timer_ = nullptr;
+
+    EyeMood current_mood_ = EyeMood::kNeutral;
+    DeviceVisualState visual_state_ = DeviceVisualState::kIdle;
+    uint32_t anim_tick_ = 0;
+    uint32_t next_blink_tick_ = 45;
+    uint32_t next_gaze_tick_ = 30;
+    int blink_phase_ = 0;
+    int gaze_x_ = 0;
+    int gaze_y_ = 0;
+    int target_gaze_x_ = 0;
+    int target_gaze_y_ = 0;
+    int halo_angle_ = 270;
+    bool subtitle_visible_ = false;
+
+    bool IsRoundDisplay() const { return width_ == height_ && width_ <= 240; }
     void InitializeLcdThemes();
     void ShowEmotion();
+    void CreateEyeUI(lv_obj_t* screen, LvglTheme* lvgl_theme);
+    void ApplyEyeMood();
+    void UpdateEyeLayout();
+    void OnEyeTimerTick();
+    static void EyeTimerCallback(lv_timer_t* timer);
+    EyeMood ParseEmotionMood(const char* emotion) const;
+    lv_color_t GetMoodColor(EyeMood mood) const;
+
     virtual bool Lock(int timeout_ms = 0) override;
     virtual void Unlock() override;
 
@@ -47,6 +107,7 @@ protected:
 public:
     ~LcdDisplay();
     virtual bool SetEmotion(const char* emotion) override;
+    virtual void SetStatus(const char* status) override;
     virtual void SetChatMessage(const char* role, const char* content) override;
     virtual void RemoveChatMessage(const char* role, const char* content) override;
     virtual void ClearChatMessages() override;
