@@ -86,54 +86,66 @@ inline lv_opa_t ToOpa(float alpha) {
 // =========================================================================
 // LVGL v9 ABI-Safe Vector Draw Helpers (ONLY rect / line / arc / label)
 // =========================================================================
+float g_nomi_scale = 1.0f;
+float g_nomi_origin = 120.0f;
+
+inline float Sx(float v) { return g_nomi_origin + (v - g_nomi_origin) * g_nomi_scale; }
+inline float Sw(float v) { return v * g_nomi_scale; }
+
 void DrawFillCircle(lv_layer_t* layer, float cx, float cy, float r, lv_color_t col,
                     lv_opa_t opa = LV_OPA_COVER) {
-    if (r < 0.8f || opa < 4) return;
+    float sr = Sw(r);
+    if (sr < 0.8f || opa < 4) return;
+    float scx = Sx(cx), scy = Sx(cy);
     lv_draw_rect_dsc_t dsc;
     lv_draw_rect_dsc_init(&dsc);
     dsc.bg_color = col;
     dsc.bg_opa = opa;
     dsc.radius = LV_RADIUS_CIRCLE;
     dsc.border_width = 0;
-    lv_area_t a = {static_cast<int32_t>(std::round(cx - r)),
-                   static_cast<int32_t>(std::round(cy - r)),
-                   static_cast<int32_t>(std::round(cx + r)),
-                   static_cast<int32_t>(std::round(cy + r))};
+    lv_area_t a = {static_cast<int32_t>(std::round(scx - sr)),
+                   static_cast<int32_t>(std::round(scy - sr)),
+                   static_cast<int32_t>(std::round(scx + sr)),
+                   static_cast<int32_t>(std::round(scy + sr))};
     lv_draw_rect(layer, &dsc, &a);
 }
 
 void DrawFillRoundRect(lv_layer_t* layer, float cx, float cy, float w, float h, float rad,
                        lv_color_t col, lv_opa_t opa = LV_OPA_COVER) {
-    if (w < 1.0f || h < 1.0f || opa < 4) return;
+    float sw_v = Sw(w), sh_v = Sw(h);
+    if (sw_v < 1.0f || sh_v < 1.0f || opa < 4) return;
+    float scx = Sx(cx), scy = Sx(cy);
     lv_draw_rect_dsc_t dsc;
     lv_draw_rect_dsc_init(&dsc);
     dsc.bg_color = col;
     dsc.bg_opa = opa;
-    dsc.radius = static_cast<int32_t>(rad);
+    dsc.radius = static_cast<int32_t>(std::round(Sw(rad)));
     dsc.border_width = 0;
-    lv_area_t a = {static_cast<int32_t>(std::round(cx - w * 0.5f)),
-                   static_cast<int32_t>(std::round(cy - h * 0.5f)),
-                   static_cast<int32_t>(std::round(cx + w * 0.5f)),
-                   static_cast<int32_t>(std::round(cy + h * 0.5f))};
+    lv_area_t a = {static_cast<int32_t>(std::round(scx - sw_v * 0.5f)),
+                   static_cast<int32_t>(std::round(scy - sh_v * 0.5f)),
+                   static_cast<int32_t>(std::round(scx + sw_v * 0.5f)),
+                   static_cast<int32_t>(std::round(scy + sh_v * 0.5f))};
     lv_draw_rect(layer, &dsc, &a);
 }
 
 void DrawStrokeRoundRect(lv_layer_t* layer, float cx, float cy, float w, float h, float rad,
                          float sw, lv_color_t col, lv_opa_t opa = LV_OPA_COVER,
                          bool fill_black = false) {
-    if (w < 1.0f || h < 1.0f || opa < 4) return;
+    float sw_v = Sw(w), sh_v = Sw(h);
+    if (sw_v < 1.0f || sh_v < 1.0f || opa < 4) return;
+    float scx = Sx(cx), scy = Sx(cy);
     lv_draw_rect_dsc_t dsc;
     lv_draw_rect_dsc_init(&dsc);
     dsc.bg_color = lv_color_hex(kColBlack);
     dsc.bg_opa = fill_black ? opa : LV_OPA_TRANSP;
     dsc.border_color = col;
-    dsc.border_width = static_cast<int32_t>(std::round(sw));
+    dsc.border_width = static_cast<int32_t>(std::max(1.0f, std::round(Sw(sw))));
     dsc.border_opa = opa;
-    dsc.radius = static_cast<int32_t>(rad);
-    lv_area_t a = {static_cast<int32_t>(std::round(cx - w * 0.5f)),
-                   static_cast<int32_t>(std::round(cy - h * 0.5f)),
-                   static_cast<int32_t>(std::round(cx + w * 0.5f)),
-                   static_cast<int32_t>(std::round(cy + h * 0.5f))};
+    dsc.radius = static_cast<int32_t>(std::round(Sw(rad)));
+    lv_area_t a = {static_cast<int32_t>(std::round(scx - sw_v * 0.5f)),
+                   static_cast<int32_t>(std::round(scy - sh_v * 0.5f)),
+                   static_cast<int32_t>(std::round(scx + sw_v * 0.5f)),
+                   static_cast<int32_t>(std::round(scy + sh_v * 0.5f))};
     lv_draw_rect(layer, &dsc, &a);
 }
 
@@ -143,32 +155,50 @@ void DrawLineSeg(lv_layer_t* layer, float x1, float y1, float x2, float y2, floa
     lv_draw_line_dsc_t dsc;
     lv_draw_line_dsc_init(&dsc);
     dsc.color = col;
-    dsc.width = static_cast<int32_t>(std::max(1.0f, std::round(w)));
+    dsc.width = static_cast<int32_t>(std::max(1.0f, std::round(Sw(w))));
     dsc.opa = opa;
     dsc.round_start = 1;
     dsc.round_end = 1;
-    dsc.p1.x = static_cast<lv_value_precise_t>(x1);
-    dsc.p1.y = static_cast<lv_value_precise_t>(y1);
-    dsc.p2.x = static_cast<lv_value_precise_t>(x2);
-    dsc.p2.y = static_cast<lv_value_precise_t>(y2);
+    dsc.p1.x = static_cast<lv_value_precise_t>(Sx(x1));
+    dsc.p1.y = static_cast<lv_value_precise_t>(Sx(y1));
+    dsc.p2.x = static_cast<lv_value_precise_t>(Sx(x2));
+    dsc.p2.y = static_cast<lv_value_precise_t>(Sx(y2));
     lv_draw_line(layer, &dsc);
 }
 
 void DrawArcSeg(lv_layer_t* layer, float cx, float cy, float rad, float a_start, float a_end,
                 float w, lv_color_t col, lv_opa_t opa = LV_OPA_COVER) {
-    if (rad < 1.5f || opa < 4) return;
+    float srad = Sw(rad);
+    if (srad < 1.5f || opa < 4) return;
     lv_draw_arc_dsc_t dsc;
     lv_draw_arc_dsc_init(&dsc);
     dsc.color = col;
-    dsc.width = static_cast<int32_t>(std::max(1.0f, std::round(w)));
+    dsc.width = static_cast<int32_t>(std::max(1.0f, std::round(Sw(w))));
     dsc.opa = opa;
     dsc.rounded = 1;
-    dsc.center.x = static_cast<int32_t>(std::round(cx));
-    dsc.center.y = static_cast<int32_t>(std::round(cy));
-    dsc.radius = static_cast<uint16_t>(std::round(rad));
+    dsc.center.x = static_cast<int32_t>(std::round(Sx(cx)));
+    dsc.center.y = static_cast<int32_t>(std::round(Sx(cy)));
+    dsc.radius = static_cast<uint16_t>(std::round(srad));
     dsc.start_angle = a_start;
     dsc.end_angle = a_end;
     lv_draw_arc(layer, &dsc);
+}
+
+// Large crisp rounded-cap vector digital clock digit (0..9)
+void DrawVectorDigit(lv_layer_t* layer, float cx, float cy, float w, float h, float sw, int digit,
+                     lv_color_t col, lv_opa_t opa) {
+    static const uint8_t kMask[10] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F};
+    if (digit < 0 || digit > 9) return;
+    uint8_t m = kMask[digit];
+    float x0 = cx - w * 0.5f, x1 = cx + w * 0.5f;
+    float y0 = cy - h * 0.5f, ym = cy, y1 = cy + h * 0.5f;
+    if (m & 0x01) DrawLineSeg(layer, x0, y0, x1, y0, sw, col, opa);  // A top
+    if (m & 0x02) DrawLineSeg(layer, x1, y0, x1, ym, sw, col, opa);  // B top-right
+    if (m & 0x04) DrawLineSeg(layer, x1, ym, x1, y1, sw, col, opa);  // C bot-right
+    if (m & 0x08) DrawLineSeg(layer, x0, y1, x1, y1, sw, col, opa);  // D bottom
+    if (m & 0x10) DrawLineSeg(layer, x0, ym, x0, y1, sw, col, opa);  // E bot-left
+    if (m & 0x20) DrawLineSeg(layer, x0, y0, x0, ym, sw, col, opa);  // F top-left
+    if (m & 0x40) DrawLineSeg(layer, x0, ym, x1, ym, sw, col, opa);  // G middle
 }
 
 // Rotated point helper around pivot (ox, oy)
@@ -578,6 +608,7 @@ LcdDisplay::LcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_
     : panel_io_(panel_io), panel_(panel) {
     width_ = width;
     height_ = height;
+    hide_subtitle_ = IsRoundDisplay();
 
     InitializeLcdThemes();
 
@@ -807,11 +838,21 @@ void LcdDisplay::SetNomiMood(EyeMood mood) {
 
 LcdDisplay::EyeMood LcdDisplay::ParseEmotionMood(const char* emotion) const {
     if (emotion == nullptr) return EyeMood::kNeutral;
-    if (strcmp(emotion, "happy") == 0) return EyeMood::kHappy;
-    if (strcmp(emotion, "laughing") == 0 || strcmp(emotion, "funny") == 0)
-        return EyeMood::kLaughing;
+    uint32_t v = (anim_tick_ / 11);
+    if (strcmp(emotion, "happy") == 0) {
+        static const EyeMood kPool[5] = {EyeMood::kHappy, EyeMood::kGreeting, EyeMood::kCelebrate,
+                                         EyeMood::kCheer, EyeMood::kStarry};
+        return kPool[v % 5];
+    }
+    if (strcmp(emotion, "laughing") == 0 || strcmp(emotion, "funny") == 0) {
+        static const EyeMood kPool[3] = {EyeMood::kLaughing, EyeMood::kSilly, EyeMood::kHappy};
+        return kPool[v % 3];
+    }
     if (strcmp(emotion, "grinning") == 0) return EyeMood::kGrinning;
-    if (strcmp(emotion, "loving") == 0) return EyeMood::kLoving;
+    if (strcmp(emotion, "loving") == 0) {
+        static const EyeMood kPool[3] = {EyeMood::kLoving, EyeMood::kKissy, EyeMood::kFestRose};
+        return kPool[v % 3];
+    }
     if (strcmp(emotion, "kissy") == 0) return EyeMood::kKissy;
     if (strcmp(emotion, "winking") == 0) return EyeMood::kWinking;
     if (strcmp(emotion, "sad") == 0) return EyeMood::kSad;
@@ -826,11 +867,23 @@ LcdDisplay::EyeMood LcdDisplay::ParseEmotionMood(const char* emotion) const {
     if (strcmp(emotion, "shy") == 0) return EyeMood::kShy;
     if (strcmp(emotion, "silly") == 0) return EyeMood::kSilly;
     if (strcmp(emotion, "sleepy") == 0) return EyeMood::kYawning;
-    if (strcmp(emotion, "relaxed") == 0) return EyeMood::kSleeping;
+    if (strcmp(emotion, "relaxed") == 0) {
+        static const EyeMood kPool[3] = {EyeMood::kCoffee, EyeMood::kHeadphones, EyeMood::kStretch};
+        return kPool[v % 3];
+    }
     if (strcmp(emotion, "delicious") == 0) return EyeMood::kDelicious;
-    if (strcmp(emotion, "cool") == 0) return EyeMood::kCool;
+    if (strcmp(emotion, "cool") == 0) {
+        static const EyeMood kPool[3] = {EyeMood::kCool, EyeMood::kMusicHipHop, EyeMood::kConfident};
+        return kPool[v % 3];
+    }
     if (strcmp(emotion, "confident") == 0) return EyeMood::kConfident;
-    if (strcmp(emotion, "music") == 0) return EyeMood::kMusic;
+    if (strcmp(emotion, "music") == 0) {
+        static const EyeMood kPool[8] = {EyeMood::kMusic,          EyeMood::kMusicSax,
+                                         EyeMood::kMusicViolin,    EyeMood::kMusicElecGuitar,
+                                         EyeMood::kMusicHandpan,   EyeMood::kMusicDJ,
+                                         EyeMood::kMusicMic,       EyeMood::kMusicNotes};
+        return kPool[v % 8];
+    }
     if (strcmp(emotion, "curious") == 0) return EyeMood::kCurious;
     if (strcmp(emotion, "scared") == 0) return EyeMood::kScared;
     if (strcmp(emotion, "sick") == 0) return EyeMood::kSick;
@@ -1094,11 +1147,75 @@ LcdDisplay::EyeMood LcdDisplay::PickIdleTheaterMood() const {
     }
 
     static const EyeMood kTheater[] = {
-        EyeMood::kClockBoard, EyeMood::kChaseDot, EyeMood::kHeadphones,
-        EyeMood::kStretch,    EyeMood::kClockGlasses, EyeMood::kPottedPlant,
-        EyeMood::kSeasonSpring, EyeMood::kSeasonAutumn, EyeMood::kHappy, EyeMood::kNeutral,
+        EyeMood::kClockBoard,   EyeMood::kChaseDot,      EyeMood::kHeadphones,
+        EyeMood::kMusic,        EyeMood::kStretch,       EyeMood::kClockGlasses,
+        EyeMood::kCoffee,       EyeMood::kMusicSax,      EyeMood::kBobaTea,
+        EyeMood::kPottedPlant,  EyeMood::kMusicHandpan,  EyeMood::kTyping,
+        EyeMood::kSunny,        EyeMood::kCool,          EyeMood::kMusicViolin,
+        EyeMood::kSeasonSpring, EyeMood::kSeasonAutumn,  EyeMood::kCheer,
+        EyeMood::kMusicDJ,      EyeMood::kMagnifier,     EyeMood::kStarry,
+        EyeMood::kWinking,      EyeMood::kMusicElecGuitar, EyeMood::kGreeting,
+        EyeMood::kLoving,       EyeMood::kCelebrate,     EyeMood::kMusicHipHop,
+        EyeMood::kConfident,    EyeMood::kSilly,         EyeMood::kWeatherWindy,
+        EyeMood::kRainy,        EyeMood::kWeatherSnow,
     };
-    return kTheater[(anim_tick_ / 23) % (sizeof(kTheater) / sizeof(kTheater[0]))];
+    static uint32_t s_idle_seq = 0;
+    s_idle_seq = (s_idle_seq + 1 + (anim_tick_ % 3)) % (sizeof(kTheater) / sizeof(kTheater[0]));
+    return kTheater[s_idle_seq];
+}
+
+void LcdDisplay::StartMoodShowcase() {
+    showcase_active_ = true;
+    showcase_index_ = 0;
+    showcase_start_tick_ = anim_tick_;
+    showcase_next_tick_ = anim_tick_ + 55;  // ~1.8s per expression
+    last_activity_tick_ = anim_tick_;
+    SetNomiMood(static_cast<EyeMood>(0));
+    ShowEmotion();
+}
+
+void LcdDisplay::StopMoodShowcase() {
+    if (!showcase_active_) return;
+    showcase_active_ = false;
+    last_activity_tick_ = anim_tick_;
+    SetNomiMood(EyeMood::kHappy);
+}
+
+bool LcdDisplay::HandleVoiceDisplayCommand(const char* text) {
+    if (text == nullptr || text[0] == '\0') return false;
+    auto has = [text](const char* kw) { return strstr(text, kw) != nullptr; };
+
+    // 1. Subtitle visibility voice toggle
+    if (has("打开字幕") || has("显示字幕") || has("开启字幕")) {
+        hide_subtitle_ = false;
+        return true;
+    }
+    if (has("关闭字幕") || has("隐藏字幕") || has("不要字幕")) {
+        hide_subtitle_ = true;
+        if (bottom_bar_ != nullptr) lv_obj_add_flag(bottom_bar_, LV_OBJ_FLAG_HIDDEN);
+        subtitle_visible_ = false;
+        return true;
+    }
+
+    // 2. Stop showcase command
+    if (showcase_active_ &&
+        (has("停止展示") || has("停止演示") || has("停止轮播") || has("退出展示") ||
+         has("退出表演") || has("别演了") || has("停下来"))) {
+        StopMoodShowcase();
+        return true;
+    }
+
+    // 3. Trigger full expression showcase ("把所有表情显示一遍" / "一边")
+    if (has("所有表情") || has("全部表情") || has("表情显示一遍") || has("表情显示一边") ||
+        has("表情都显示") || has("展示表情") || has("演示表情") || has("表演表情") ||
+        has("表情秀") || has("表情演示") || has("轮播表情") || has("展示全部") ||
+        has("show all") || has("SHOW ALL")) {
+        if (!showcase_active_) {
+            StartMoodShowcase();
+        }
+        return true;
+    }
+    return false;
 }
 
 void LcdDisplay::CreateEyeUI(lv_obj_t* screen, LvglTheme* lvgl_theme) {
@@ -1131,6 +1248,8 @@ void LcdDisplay::NomiDrawEventCb(lv_event_t* e) {
 
 void LcdDisplay::RenderNomiFrame(lv_layer_t* layer) {
     const float R = width_ * 0.5f;  // 120.0f on 240x240
+    g_nomi_origin = R;
+    g_nomi_scale = 1.0f;
     const float t_global = anim_tick_ * 0.033f;
     const float age = (anim_tick_ - mood_enter_tick_) * 0.033f;
     const float sub_shift_y = subtitle_visible_ ? -18.0f : 0.0f;
@@ -1183,6 +1302,17 @@ void LcdDisplay::RenderNomiFrame(lv_layer_t* layer) {
             DrawArcSeg(layer, R, R, 114.0f, 0, 360, 2.8f, lv_color_hex(hc), ToOpa(pulse));
         }
     }
+
+    // Showcase progress ring (sleek thin cyan arc at bezel R=114, zero text clutter)
+    if (showcase_active_) {
+        float prog = ClampF(static_cast<float>(showcase_index_ + 1) /
+                            static_cast<float>(static_cast<int>(EyeMood::kMoodCount)));
+        DrawArcSeg(layer, R, R, 114.0f, 270.0f, 270.0f + prog * 360.0f, 3.0f,
+                   lv_color_hex(kColCyan), ToOpa(0.8f));
+    }
+
+    // Enlarge all NOMI eyes & props to fill the 240x240 circular screen cleanly
+    g_nomi_scale = subtitle_visible_ ? 1.08f : 1.22f;
 
     // 4. Coordinated eye tilt & follow offsets
     float eye_x = 0.0f, eye_y = std::sin(t_global * 2.2f) * 1.5f, eye_tilt_deg = 0.0f;
@@ -1813,50 +1943,37 @@ void LcdDisplay::RenderNomiFrame(lv_layer_t* layer) {
                 time_t now = std::time(nullptr);
                 struct tm ti;
                 localtime_r(&now, &ti);
-                char hh[8], mm[8];
-                std::snprintf(hh, sizeof(hh), "%02d", ti.tm_hour);
-                std::snprintf(mm, sizeof(mm), "%02d", ti.tm_min);
+                int h1 = (ti.tm_hour / 10) % 10;
+                int h2 = ti.tm_hour % 10;
+                int m1 = (ti.tm_min / 10) % 10;
+                int m2 = ti.tm_min % 10;
                 bool col_on = ((anim_tick_ / 15) % 2) == 0;
-                const lv_font_t* font = LV_FONT_DEFAULT;
-                if (current_theme_ != nullptr) {
-                    font = static_cast<LvglTheme*>(current_theme_)->text_font()->font();
-                }
                 if (cfg.prop == NomiPropKind::kClockBoard) {
-                    float lift = (1.0f - p_pop) * 30.0f;
-                    DrawStrokeRoundRect(layer, R, py0 + 14 + lift, 142, 56, 14, 3.6f, col_w, p_opa, true);
-                    DrawFillRoundRect(layer, R - 42, py0 - 16 + lift, 20, 12, 6, col_w, p_opa);
-                    DrawFillRoundRect(layer, R + 42, py0 - 16 + lift, 20, 12, 6, col_w, p_opa);
-                    lv_draw_label_dsc_t ld;
-                    lv_draw_label_dsc_init(&ld);
-                    ld.color = col_w;
-                    ld.font = font;
-                    ld.align = LV_TEXT_ALIGN_CENTER;
-                    char buf[16];
-                    std::snprintf(buf, sizeof(buf), col_on ? "%s : %s" : "%s   %s", hh, mm);
-                    ld.text = buf;
-                    lv_area_t ta = {static_cast<int32_t>(R - 64), static_cast<int32_t>(py0 + 2 + lift),
-                                    static_cast<int32_t>(R + 64), static_cast<int32_t>(py0 + 36 + lift)};
-                    lv_draw_label(layer, &ld, &ta);
-                } else {
-                    DrawStrokeRoundRect(layer, R - 38, py0 - 2, 66 * p_pop, 44 * p_pop, 14, 3.6f, col_w, p_opa, true);
-                    DrawStrokeRoundRect(layer, R + 38, py0 - 2, 66 * p_pop, 44 * p_pop, 14, 3.6f, col_w, p_opa, true);
-                    DrawLineSeg(layer, R - 5, py0 - 10, R + 5, py0 - 10, 3.6f, col_w, p_opa);
-                    lv_draw_label_dsc_t ld;
-                    lv_draw_label_dsc_init(&ld);
-                    ld.color = col_w;
-                    ld.font = font;
-                    ld.align = LV_TEXT_ALIGN_CENTER;
-                    ld.text = hh;
-                    lv_area_t a1 = {static_cast<int32_t>(R - 68), static_cast<int32_t>(py0 - 12),
-                                    static_cast<int32_t>(R - 8), static_cast<int32_t>(py0 + 18)};
-                    lv_draw_label(layer, &ld, &a1);
-                    ld.text = mm;
-                    lv_area_t a2 = {static_cast<int32_t>(R + 8), static_cast<int32_t>(py0 - 12),
-                                    static_cast<int32_t>(R + 68), static_cast<int32_t>(py0 + 18)};
-                    lv_draw_label(layer, &ld, &a2);
+                    float lift = (1.0f - p_pop) * 28.0f;
+                    float cy_b = py0 + 16.0f + lift;
+                    DrawStrokeRoundRect(layer, R, cy_b, 148, 60, 15, 3.8f, col_w, p_opa, true);
+                    DrawFillRoundRect(layer, R - 44, cy_b - 31, 22, 13, 6.5f, col_w, p_opa);
+                    DrawFillRoundRect(layer, R + 44, cy_b - 31, 22, 13, 6.5f, col_w, p_opa);
+                    // Large crisp vector digits (at 1.22x scale -> ~36px tall!)
+                    DrawVectorDigit(layer, R - 46, cy_b, 16.0f, 30.0f, 4.0f, h1, col_w, p_opa);
+                    DrawVectorDigit(layer, R - 20, cy_b, 16.0f, 30.0f, 4.0f, h2, col_w, p_opa);
+                    DrawVectorDigit(layer, R + 20, cy_b, 16.0f, 30.0f, 4.0f, m1, col_w, p_opa);
+                    DrawVectorDigit(layer, R + 46, cy_b, 16.0f, 30.0f, 4.0f, m2, col_w, p_opa);
                     if (col_on) {
-                        DrawFillCircle(layer, R, py0 - 6, 2.2f, c_cyan, p_opa);
-                        DrawFillCircle(layer, R, py0 + 4, 2.2f, c_cyan, p_opa);
+                        DrawFillCircle(layer, R, cy_b - 7.5f, 3.0f, col_w, p_opa);
+                        DrawFillCircle(layer, R, cy_b + 7.5f, 3.0f, col_w, p_opa);
+                    }
+                } else {
+                    DrawStrokeRoundRect(layer, R - 38, py0 - 2, 66 * p_pop, 46 * p_pop, 14, 3.6f, col_w, p_opa, true);
+                    DrawStrokeRoundRect(layer, R + 38, py0 - 2, 66 * p_pop, 46 * p_pop, 14, 3.6f, col_w, p_opa, true);
+                    DrawLineSeg(layer, R - 5, py0 - 10, R + 5, py0 - 10, 3.6f, col_w, p_opa);
+                    DrawVectorDigit(layer, R - 50, py0 - 2, 13.0f * p_pop, 24.0f * p_pop, 3.4f, h1, col_w, p_opa);
+                    DrawVectorDigit(layer, R - 26, py0 - 2, 13.0f * p_pop, 24.0f * p_pop, 3.4f, h2, col_w, p_opa);
+                    DrawVectorDigit(layer, R + 26, py0 - 2, 13.0f * p_pop, 24.0f * p_pop, 3.4f, m1, col_w, p_opa);
+                    DrawVectorDigit(layer, R + 50, py0 - 2, 13.0f * p_pop, 24.0f * p_pop, 3.4f, m2, col_w, p_opa);
+                    if (col_on) {
+                        DrawFillCircle(layer, R, py0 - 7, 2.5f, c_cyan, p_opa);
+                        DrawFillCircle(layer, R, py0 + 5, 2.5f, c_cyan, p_opa);
                     }
                 }
                 break;
@@ -1894,9 +2011,9 @@ void LcdDisplay::RenderNomiFrame(lv_layer_t* layer) {
                 DrawLineSeg(layer, R - 64, py0 + 22, R - 82, py0 + 40, 5.2f, col_w, p_opa);
                 break;
             case NomiPropKind::kHeadphones:
-                DrawArcSeg(layer, R, py0 + 2, 82, 200, 340, 3.8f, col_w, p_opa);
-                DrawFillRoundRect(layer, R - 84, py0 + 2, 13, 36, 6.5f, col_w, p_opa);
-                DrawFillRoundRect(layer, R + 84, py0 + 2, 13, 36, 6.5f, col_w, p_opa);
+                DrawArcSeg(layer, R, py0 + 2, 74, 200, 340, 3.8f, col_w, p_opa);
+                DrawFillRoundRect(layer, R - 76, py0 + 2, 13, 36, 6.5f, col_w, p_opa);
+                DrawFillRoundRect(layer, R + 76, py0 + 2, 13, 36, 6.5f, col_w, p_opa);
                 break;
             case NomiPropKind::kPottedPlant:
                 DrawStrokeRoundRect(layer, R, py0 + 48, 32 * p_pop, 22 * p_pop, 4, 3.4f, col_w, p_opa);
@@ -1972,6 +2089,7 @@ void LcdDisplay::RenderNomiFrame(lv_layer_t* layer) {
                 break;
         }
     }
+    g_nomi_scale = 1.0f;
 }
 
 void LcdDisplay::EyeTimerCallback(lv_timer_t* timer) {
@@ -2013,8 +2131,19 @@ void LcdDisplay::OnEyeTimerTick() {
         next_blink_tick_ = anim_tick_ + 85 + ((anim_tick_ * 37) % 80);
     }
 
-    // 3. Idle NOMI life theater (30s..5min periodic mini-shows -> >5min or 23:00-07:00 quiet sleep)
-    if (visual_state_ == DeviceVisualState::kIdle && !subtitle_visible_) {
+    // 3. Full Expression Showcase Mode (cycles all 98 moods sequentially, ~1.8s each)
+    if (showcase_active_) {
+        if (anim_tick_ >= showcase_next_tick_) {
+            showcase_index_++;
+            if (showcase_index_ >= static_cast<int>(EyeMood::kMoodCount)) {
+                StopMoodShowcase();
+            } else {
+                SetNomiMood(static_cast<EyeMood>(showcase_index_));
+                showcase_next_tick_ = anim_tick_ + 55;
+            }
+        }
+    } else if (visual_state_ == DeviceVisualState::kIdle && !subtitle_visible_) {
+        // 4. Lively Idle NOMI life theater (12s start, switches every 8~12s -> >5min or night sleep)
         uint32_t idle_ticks = anim_tick_ - last_activity_tick_;
         time_t now = std::time(nullptr);
         struct tm ti;
@@ -2024,10 +2153,10 @@ void LcdDisplay::OnEyeTimerTick() {
         if ((idle_ticks > 9000 || (night_quiet && idle_ticks > 900)) &&
             current_mood_ != EyeMood::kSleeping) {
             SetNomiMood(EyeMood::kSleeping);
-        } else if (!night_quiet && idle_ticks > 900 && anim_tick_ >= next_idle_act_tick_ &&
+        } else if (!night_quiet && idle_ticks > 360 && anim_tick_ >= next_idle_act_tick_ &&
                    current_mood_ != EyeMood::kSleeping) {
             SetNomiMood(PickIdleTheaterMood());
-            next_idle_act_tick_ = anim_tick_ + 360 + ((anim_tick_ * 29) % 240);
+            next_idle_act_tick_ = anim_tick_ + 240 + ((anim_tick_ * 29) % 130);
         }
     }
 
@@ -2040,6 +2169,8 @@ void LcdDisplay::UpdateTopBarVisibility() {
     if (!IsRoundDisplay()) return;
     bool show_net = (visual_state_ == DeviceVisualState::kConnecting ||
                      visual_state_ == DeviceVisualState::kWifiError);
+    bool show_notif = (notification_label_ != nullptr &&
+                       !lv_obj_has_flag(notification_label_, LV_OBJ_FLAG_HIDDEN));
 
     if (top_bar_ != nullptr) {
         if (show_net) {
@@ -2052,12 +2183,17 @@ void LcdDisplay::UpdateTopBarVisibility() {
             lv_obj_add_flag(top_bar_, LV_OBJ_FLAG_HIDDEN);
         }
     }
+    // Hide top status/time text during normal standby/listening/speaking for a clean full-face NOMI
     if (status_bar_ != nullptr) {
-        lv_obj_align(status_bar_, LV_ALIGN_TOP_MID, 0, show_net ? 30 : 18);
+        if (show_net || show_notif) {
+            lv_obj_remove_flag(status_bar_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_align(status_bar_, LV_ALIGN_TOP_MID, 0, show_net ? 30 : 18);
+        } else {
+            lv_obj_add_flag(status_bar_, LV_OBJ_FLAG_HIDDEN);
+        }
     }
     if (status_label_ != nullptr) {
-        lv_opa_t opa = (visual_state_ == DeviceVisualState::kIdle) ? LV_OPA_40 : LV_OPA_90;
-        lv_obj_set_style_text_opa(status_label_, opa, 0);
+        lv_obj_set_style_text_opa(status_label_, LV_OPA_90, 0);
     }
 }
 
@@ -2476,7 +2612,6 @@ void LcdDisplay::SetPreviewImage(std::unique_ptr<LvglImage> image) {
 }
 
 void LcdDisplay::SetChatMessage(const char* role, const char* content) {
-    (void)role;
     if (!setup_ui_called_) return;
     DisplayLockGuard lock(this);
     if (chat_message_label_ == nullptr) return;
@@ -2485,22 +2620,34 @@ void LcdDisplay::SetChatMessage(const char* role, const char* content) {
     lv_label_set_text(chat_message_label_, content != nullptr ? content : "");
 
     bool has_content = (content != nullptr && content[0] != '\0');
+    bool is_system = (role != nullptr && strcmp(role, "system") == 0);
+
+    if (IsRoundDisplay() && has_content) {
+        last_activity_tick_ = anim_tick_;
+        if (HandleVoiceDisplayCommand(content)) {
+            if (bottom_bar_ != nullptr && hide_subtitle_ && !is_system) {
+                lv_obj_add_flag(bottom_bar_, LV_OBJ_FLAG_HIDDEN);
+                subtitle_visible_ = false;
+            }
+            return;
+        }
+    }
+
     if (bottom_bar_ != nullptr) {
-        if (!has_content) {
+        if (!has_content || (hide_subtitle_ && !is_system)) {
             lv_obj_add_flag(bottom_bar_, LV_OBJ_FLAG_HIDDEN);
             subtitle_visible_ = false;
-        } else if (!hide_subtitle_) {
+        } else {
             lv_obj_remove_flag(bottom_bar_, LV_OBJ_FLAG_HIDDEN);
             subtitle_visible_ = true;
             if (IsRoundDisplay()) {
-                lv_obj_align(bottom_bar_, LV_ALIGN_BOTTOM_MID, 0, -30);
+                lv_obj_align(bottom_bar_, LV_ALIGN_BOTTOM_MID, 0, -26);
                 UpdateSubtitleScrollMetrics();
             }
         }
     }
 
-    if (IsRoundDisplay() && has_content) {
-        last_activity_tick_ = anim_tick_;
+    if (IsRoundDisplay() && has_content && !showcase_active_) {
         EyeMood ctx_mood = current_mood_;
         if (MatchContextualMood(content, ctx_mood)) {
             SetNomiMood(ctx_mood);
@@ -2551,35 +2698,48 @@ void LcdDisplay::SetStatus(const char* status) {
     if (strstr(status, "聆听") != nullptr || strstr(status, "Listen") != nullptr ||
         strstr(status, "listen") != nullptr) {
         new_state = DeviceVisualState::kListening;
-        SetNomiMood(EyeMood::kListening);
+        if (showcase_active_ && (anim_tick_ - showcase_start_tick_) > 75) {
+            showcase_active_ = false;
+        }
+        if (!showcase_active_) {
+            SetNomiMood(EyeMood::kListening);
+        }
         last_activity_tick_ = anim_tick_;
     } else if (strstr(status, "说话") != nullptr || strstr(status, "Speak") != nullptr ||
                strstr(status, "speak") != nullptr) {
         new_state = DeviceVisualState::kSpeaking;
-        if (current_mood_ == EyeMood::kListening || current_mood_ == EyeMood::kSleeping ||
-            current_mood_ == EyeMood::kConnecting) {
-            SetNomiMood(EyeMood::kSpeaking);
+        if (!showcase_active_ &&
+            (current_mood_ == EyeMood::kListening || current_mood_ == EyeMood::kSleeping ||
+             current_mood_ == EyeMood::kConnecting)) {
+            static const EyeMood kSpeakVar[4] = {EyeMood::kSpeaking, EyeMood::kHappy,
+                                                 EyeMood::kGreeting, EyeMood::kCurious};
+            SetNomiMood(kSpeakVar[(anim_tick_ / 13) % 4]);
         }
         last_activity_tick_ = anim_tick_;
     } else if (strstr(status, "断开") != nullptr || strstr(status, "失败") != nullptr ||
                strstr(status, "离线") != nullptr || strstr(status, "Error") != nullptr ||
                strstr(status, "Offline") != nullptr) {
         new_state = DeviceVisualState::kWifiError;
+        showcase_active_ = false;
         SetNomiMood(EyeMood::kWifiError);
     } else if (strstr(status, "连接") != nullptr || strstr(status, "初始") != nullptr ||
                strstr(status, "配网") != nullptr || strstr(status, "Wi-Fi") != nullptr ||
                strstr(status, "WiFi") != nullptr || strstr(status, "Connect") != nullptr ||
                strstr(status, "Init") != nullptr || strstr(status, "Config") != nullptr) {
         new_state = DeviceVisualState::kConnecting;
+        showcase_active_ = false;
         SetNomiMood(EyeMood::kConnecting);
     } else if (strstr(status, "待命") != nullptr || strstr(status, "Standby") != nullptr ||
                strstr(status, "Idle") != nullptr) {
         new_state = DeviceVisualState::kIdle;
-        if (prev_state == DeviceVisualState::kConnecting ||
-            prev_state == DeviceVisualState::kWifiError) {
-            SetNomiMood(EyeMood::kWakingUp);
-        } else {
-            SetNomiMood(EyeMood::kNeutral);
+        if (!showcase_active_) {
+            if (prev_state == DeviceVisualState::kConnecting ||
+                prev_state == DeviceVisualState::kWifiError) {
+                SetNomiMood(EyeMood::kWakingUp);
+            } else {
+                SetNomiMood(EyeMood::kNeutral);
+            }
+            next_idle_act_tick_ = anim_tick_ + 360;
         }
         last_activity_tick_ = anim_tick_;
     }
@@ -2599,9 +2759,14 @@ bool LcdDisplay::SetEmotion(const char* emotion) {
             gif_controller_.reset();
         }
         last_activity_tick_ = anim_tick_;
-        EyeMood parsed = ParseEmotionMood(emotion);
-        if (!(parsed == EyeMood::kNeutral && visual_state_ == DeviceVisualState::kSpeaking)) {
-            SetNomiMood(parsed);
+        if (strcmp(emotion, "demo") == 0 || strcmp(emotion, "showcase") == 0 ||
+            strcmp(emotion, "all") == 0) {
+            StartMoodShowcase();
+        } else if (!showcase_active_) {
+            EyeMood parsed = ParseEmotionMood(emotion);
+            if (!(parsed == EyeMood::kNeutral && visual_state_ == DeviceVisualState::kSpeaking)) {
+                SetNomiMood(parsed);
+            }
         }
         emotion_uses_image_ = false;
         ShowEmotion();
