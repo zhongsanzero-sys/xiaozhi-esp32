@@ -123,6 +123,7 @@ protected:
         kProud,
         kBored,
         kCurious,
+        kMoodCount,
     };
 
     enum class DeviceVisualState {
@@ -173,6 +174,10 @@ protected:
     int subtitle_max_scroll_ = 0;
     int subtitle_pause_ticks_ = 0;
     int subtitle_box_height_ = 46;
+    bool showcase_active_ = false;
+    int showcase_index_ = 0;
+    uint32_t showcase_start_tick_ = 0;
+    uint32_t showcase_next_tick_ = 0;
 
     bool IsRoundDisplay() const { return width_ == height_ && width_ <= 240; }
     void InitializeLcdThemes();
@@ -188,6 +193,9 @@ protected:
     EyeMood ParseEmotionMood(const char* emotion) const;
     bool MatchContextualMood(const char* text, EyeMood& out_mood) const;
     EyeMood PickIdleTheaterMood() const;
+    void StartMoodShowcase();
+    void StopMoodShowcase();
+    bool HandleVoiceDisplayCommand(const char* text);
 
     virtual bool Lock(int timeout_ms = 0) override;
     virtual void Unlock() override;
